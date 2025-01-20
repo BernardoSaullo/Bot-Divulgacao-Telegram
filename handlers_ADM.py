@@ -234,6 +234,8 @@ def handle_aprova_ou_rejeita(bot, call):
                 if not grupo:
                     bot.answer_callback_query(call.id, "Grupo não encontrado!")
                     return
+                    
+                bot.leave_chat(group_id)    
 
                 # Adicionar o grupo à tabela de banidos antes de excluir
                 cursor.execute("INSERT INTO grupos_e_canais_banidos (id, tipo, data_banimento) VALUES (%s, %s, %s)",
