@@ -86,40 +86,40 @@ def handleMenu(bot, message):
         bot.send_message(message.chat.id, "Erro inesperado. Por favor, tente novamente mais tarde.")
 
 # Função para manipular callbacks do menu
+# Função para manipular callbacks do menu
 def handleCallMenu(bot, call):
     try:
         if call.data == 'menu_meu_perfil':
-            try:
-                if call.message.chat.id in boas_vindas_message_ids:
-                    message_id = boas_vindas_message_ids[call.message.chat.id]
-                    bot.delete_message(chat_id=call.message.chat.id, message_id=message_id)
+            # Aqui você usa o message_id armazenado no dicionário global
+            if call.message.chat.id in boas_vindas_message_ids:
+                message_id = boas_vindas_message_ids[call.message.chat.id]
+                bot.delete_message(chat_id=call.message.chat.id, message_id=message_id)
 
-                conexao = conectar_ao_banco()
-                if not conexao:
-                    bot.answer_callback_query(call.id, "Erro ao acessar o banco de dados. Tente novamente mais tarde.")
-                    return
+            conexao = conectar_ao_banco()
+            if not conexao:
+                bot.answer_callback_query(call.id, "Erro ao acessar o banco de dados. Tente novamente mais tarde.")
+                return
 
-                cursor = conexao.cursor(dictionary=True)
-                user_id = call.from_user.id
+            cursor = conexao.cursor(dictionary=True)
+            user_id = call.from_user.id
 
-                try:
-                    # Buscar usuário no banco de dados
-                    cursor.execute("SELECT * FROM usuarios WHERE id = %s", (user_id,))
-                    usuario = cursor.fetchone()
+            # Buscar usuário no banco de dados
+            cursor.execute("SELECT * FROM usuarios WHERE id = %s", (user_id,))
+            usuario = cursor.fetchone()
 
-                    if not usuario:
-                        bot.answer_callback_query(call.id, "Usuário não encontrado!")
-                        return
+            if not usuario:
+                bot.answer_callback_query(call.id, "Usuário não encontrado!")
+                return
 
-                    # Buscar quantidade de grupos e canais do usuário
-                    cursor.execute("SELECT COUNT(*) AS total FROM grupos_e_canais WHERE id_usuario = %s AND tipo = 'Grupo'", (user_id,))
-                    total_grupos = cursor.fetchone()["total"]
+            # Buscar quantidade de grupos e canais do usuário
+            cursor.execute("SELECT COUNT(*) AS total FROM grupos_e_canais WHERE id_usuario = %s AND tipo = 'Grupo'", (user_id,))
+            total_grupos = cursor.fetchone()["total"]
 
-                    cursor.execute("SELECT COUNT(*) AS total FROM grupos_e_canais WHERE id_usuario = %s AND tipo = 'Canal'", (user_id,))
-                    total_canais = cursor.fetchone()["total"]
+            cursor.execute("SELECT COUNT(*) AS total FROM grupos_e_canais WHERE id_usuario = %s AND tipo = 'Canal'", (user_id,))
+            total_canais = cursor.fetchone()["total"]
 
-                    # Mensagem de perfil
-                    mensagem = f"""⚙️ 𝗚𝗲𝗿𝗲𝗻𝗰𝗶𝗲 e veja as informações do seu perfil aqui, como canais/grupos cadastrados e muito mais!
+            # Mensagem de perfil
+            mensagem = f"""⚙️ 𝗚𝗲𝗿𝗲𝗻𝗰𝗶𝗲 e veja as informações do seu perfil aqui, como canais/grupos cadastrados e muito mais!
 
 <blockquote>🧑🏻‍💻 • 𝗠𝗲𝘂 𝗽𝗲𝗿𝗳𝗶𝗹
 ┣ 📢 <b>Canais</b> : {total_canais}
@@ -129,30 +129,63 @@ def handleCallMenu(bot, call):
 
 🔗 Seus Canais/Grupos</blockquote>"""
 
-                    cursor.execute("SELECT nome, link, apro FROM grupos_e_canais WHERE id_usuario = %s", (user_id,))
-                    grupos_canais = cursor.fetchall()
+            # Buscar grupos e canais do usuário
+            cursor.execute("SELECT nome, link, apro FROM grupos_e_canais WHERE id_usuario = %s", (user_id,))
+            grupos_canais = cursor.fetchall()
 
-                    for grupo in grupos_canais:
-                        if grupo["apro"]:
-                            mensagem += f"- <b>{grupo['nome']}</b>: <a href=\"{grupo['link']}\">Acessar</a>\n"
-                        else:
-                            mensagem += f"- <b>{grupo['nome']}</b>: <a href=\"{grupo['link']}\">Acessar</a> (Aguardando Aprovação)\n"
+            for grupo in grupos_canais:
+                if grupo["apro"]:
+                    mensagem += f"- <b>{grupo['nome']}</b>: <a href=\"{grupo['link']}\">Acessar</a>\n"  # Aprovados
+                else:
+                    mensagem += f"- <b>{grupo['nome']}</b>: <a href=\"{grupo['link']}\">Acessar</a> (Aguardando Aprovação)\n"
 
-                    markup = InlineKeyboardMarkup()
-                    markup.add(InlineKeyboardButton("🏠 Início", callback_data='menu_inicio'))
+            # Criação do markup
+            markup = InlineKeyboardMarkup()
+            markup.add(InlineKeyboardButton("🏠 Início", callback_data='menu_inicio'))
 
-                    bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=mensagem, reply_markup=markup)
+            # Enviar a mensagem
+            bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=mensagem, reply_markup=markup)
 
-                except Error as e:
-                    print(f"Erro na função handleCallMenu durante execução de MySQL: {e}")
-                    bot.answer_callback_query(call.id, "Erro ao processar a solicitação.")
-                finally:
-                    cursor.close()
-                    conexao.close()
-            except Exception as e:
-                print(f"Erro na função handleCallMenu (menu_meu_perfil): {e}")
-                bot.answer_callback_query(call.id, "Erro inesperado no menu perfil.")
-        # Outros menus...
+        elif call.data == 'menu_regras':
+            conexao = conectar_ao_banco()
+            if not conexao:
+                bot.answer_callback_query(call.id, "Erro ao acessar o banco de dados. Tente novamente mais tarde.")
+                return
+
+            cursor = conexao.cursor(dictionary=True)
+            # Obter mensagem de regras
+            cursor.execute("SELECT mensagem_regras FROM mensagens LIMIT 1")
+            mensagem = cursor.fetchone()["mensagem_regras"]
+
+            markup = botaoRegras()
+
+            bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=mensagem, reply_markup=markup, parse_mode='HTML')
+
+        elif call.data == 'menu_add':
+            bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="Adicione seu Grupo/Canal:", reply_markup=botoesAdicaoCanalouGrupo())
+
+        elif call.data == 'menu_inicio':
+            conexao = conectar_ao_banco()
+            if not conexao:
+                bot.answer_callback_query(call.id, "Erro ao acessar o banco de dados. Tente novamente mais tarde.")
+                return
+
+            cursor = conexao.cursor(dictionary=True)
+
+            markup = botoesMenuUser()
+            cursor.execute("SELECT mensagem_inicio FROM mensagens LIMIT 1")
+            mensagem = cursor.fetchone()
+
+            mensagem_texto = mensagem["mensagem_inicio"] if mensagem else "Mensagem padrão de início.																	"
+
+            if call.message.text != mensagem_texto or call.message.reply_markup != markup:
+                bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=mensagem_texto, reply_markup=markup)
+            else:
+                print("A mensagem e o teclado são os mesmos. Nenhuma alteração necessária.")
+        else:
+            bot.answer_callback_query(call.id, "Opção inválida.")
     except Exception as e:
         print(f"Erro na função handleCallMenu: {e}")
         bot.answer_callback_query(call.id, "Erro inesperado no menu principal.")
+
+
